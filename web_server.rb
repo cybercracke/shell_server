@@ -4,16 +4,17 @@ require 'sinatra/base'
 require 'sinatra-websocket'
 
 class ShellClient
-  attr_reader :web_socket
+  attr_reader :ip, :web_socket
 
   def initialize(web_socket)
     @web_socket = web_socket
+    @ip = Addrinfo.new(web_socket.get_peername).ip_unpack
   end
 end
 
 class App < Sinatra::Base
   disable :protection
-  enable :logging
+  enable :logging, :inline_templates
 
   set :root, File.expand_path(File.dirname(__FILE__))
   set :shell_clients, []
@@ -32,8 +33,9 @@ class App < Sinatra::Base
 
     request.websocket do |ws|
       ws.onopen do
-        logger.info("Websocket opened from #{ws.request.to_h}")
-        settings.shell_clients << ShellClient.new(ws)
+        sc = ShellClient.new(ws)
+        logger.info("Websocket opened from #{sc.ip.join(':')}")
+        settings.shell_clients << sc
       end
 
       ws.onmessage do |msg|
@@ -41,7 +43,8 @@ class App < Sinatra::Base
       end
 
       ws.onclose do
-        logger.info("Websocket closed from #{ws.request["host"]}")
+        sc = settings.shell_clients.select { |s| s.web_socket == ws }.first
+        logger.info("Websocket closed from #{sc.ip.join(':')}")
         settings.shell_clients.delete_if { |s| s.web_socket == ws }
       end
     end
@@ -54,9 +57,22 @@ class App < Sinatra::Base
   error do
     erb "Oh the humanity! An error occurred"
   end
+end
 
-  template :index do
-    <<-'EOI'
+__END__
+
+@@ layout
+<!DOCTYPE>
+<html>
+  <head>
+    <title>Testing Shell Server</title>
+  </head>
+  <body>
+    <%= yield %>
+  </body>
+</html>
+
+@@ index
 <form id="form"><input type="text" id="input"/></form>
 
 <script type="text/javascript">
@@ -82,21 +98,3 @@ class App < Sinatra::Base
     })();
   }
 </script>
-    EOI
-  end
-
-  template :layout do
-    <<-'EOL'
-<!DOCTYPE>
-<html>
-  <head>
-    <title>Testing Shell Server</title>
-  </head>
-  <body>
-    <%= yield %>
-  </body>
-</html>
-    EOL
-  end
-end
-
