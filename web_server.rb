@@ -111,13 +111,17 @@ __END__
 </div>
 
 <script type="text/javascript">
-  window.onload = function(){
+  var handleMessage = function(msg) {
+    console.log(msg)
+  };
+
+  window.onload = function() {
     (function() {
       var ws       = new WebSocket('ws://' + window.location.host + '/sockets');
 
-      ws.onopen    = function()  { console.log('Websocket opened'); };
-      ws.onclose   = function()  { console.log('Websocket closed'); }
-      ws.onmessage = function(m) { console.log(m); };
+      ws.onopen    = function()    { console.log('Websocket opened.'); };
+      ws.onclose   = function()    { console.log('Websocket closed.'); };
+      ws.onmessage = function(msg) { handleMessage(JSON.parse(msg.data)); };
     })();
   }
 </script>
