@@ -10,6 +10,10 @@ class ShellClient
     @web_socket = web_socket
     @ip = Addrinfo.new(web_socket.get_peername).ip_unpack
   end
+
+  def send(msg)
+    web_socket.send(msg)
+  end
 end
 
 class App < Sinatra::Base
@@ -35,11 +39,13 @@ class App < Sinatra::Base
       ws.onopen do
         sc = ShellClient.new(ws)
         logger.info("Websocket opened from #{sc.ip.join(':')}")
+
+        sc.send(JSON.generate(get_shell_servers))
         settings.shell_clients << sc
       end
 
       ws.onmessage do |msg|
-        EM.next_tick { settings.shell_clients.each{ |s| s.web_socket.send(msg) } }
+        EM.next_tick { settings.shell_clients.each{ |s| s.send(msg) } }
       end
 
       ws.onclose do
@@ -57,6 +63,20 @@ class App < Sinatra::Base
   error do
     erb "Oh the humanity! An error occurred"
   end
+
+  helpers do
+    # TODO: Get shells from redis instance and send to populate the client's
+    # browser.
+    def get_shell_servers
+      {
+        'type' => 'server_list',
+        'servers' => [
+          {'name' => 'test1', 'shells' => ['asdf', 'quiten']},
+          {'name' => 'test2', 'shells' => []}
+        ],
+      }
+    end
+  end
 end
 
 __END__
@@ -66,6 +86,18 @@ __END__
 <html>
   <head>
     <title>Testing Shell Server</title>
+    <style>
+      *, *:after, *:before {
+        -webkit-box-size: border-box;
+        -moz-box-sizing:  border-box;
+        box-sizing:       border-box;
+      }
+
+      body {
+        line-height: 1.4em;
+        font-size: 1.1em;
+      }
+    </style>
   </head>
   <body>
     <%= yield %>
@@ -73,7 +105,10 @@ __END__
 </html>
 
 @@ index
-<form id="form"><input type="text" id="input"/></form>
+<div id="shell_servers">
+</div>
+<div class="shells">
+</div>
 
 <script type="text/javascript">
   window.onload = function(){
@@ -83,18 +118,6 @@ __END__
       ws.onopen    = function()  { console.log('Websocket opened'); };
       ws.onclose   = function()  { console.log('Websocket closed'); }
       ws.onmessage = function(m) { console.log(m); };
-
-      var sender = function(f) {
-        var input  = document.getElementById('input');
-
-        f.onsubmit = function(event) {
-          event.preventDefault();
-          ws.send(input.value);
-          input.value = "";
-        }
-      }(document.getElementById('form'));
-
-      window.ws = ws;
     })();
   }
 </script>
