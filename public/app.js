@@ -48,6 +48,8 @@ window.handleMessage = function(msg) {
 //  http://www.cambiaresearch.com/articles/15/javascript-char-codes-key-codes
 // Source for ANSI escape sequences:
 //  http://ascii-table.com/ansi-escape-sequences-vt-100.php
+//
+// Handles encoding almost all keypresses to be passed on to the shell.
 window.keyDownHandler = function(evnt) {
   if (window.current_shell === undefined) return true;
   var charStr = "";
@@ -122,7 +124,7 @@ window.keyDownHandler = function(evnt) {
   }
 };
 
-// Handle long key presses and key repeats.
+// Handle long key presses, key repeats.
 window.keyPressHandler = function(evnt) {
   if (window.current_shell === undefined) return true;
   if (evnt.stopPropagation) evnt.stopPropagation();
