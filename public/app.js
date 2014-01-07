@@ -49,6 +49,7 @@ window.handleMessage = function(msg) {
 // Source for ANSI escape sequences:
 //  http://ascii-table.com/ansi-escape-sequences-vt-100.php
 window.keyDownHandler = function(evnt) {
+  if (window.current_shell === undefined) return true;
   var charStr = "";
 
   // Lookup / convert key press ID's into their ANSI escape sequences
@@ -112,7 +113,7 @@ window.keyDownHandler = function(evnt) {
 
     window.key_rep_state = 1;
     window.key_rep_str = charStr;
-    window.sendMessage("keyboard", escape(charStr));
+    window.sendMessage(window.current_shell + ":keys", escape(charStr));
 
     return false;
   } else {
@@ -123,6 +124,7 @@ window.keyDownHandler = function(evnt) {
 
 // Handle long key presses and key repeats.
 window.keyPressHandler = function(evnt) {
+  if (window.current_shell === undefined) return true;
   if (evnt.stopPropagation) evnt.stopPropagation();
   if (evnt.preventDefault) evnt.preventDefault();
 
@@ -148,7 +150,7 @@ window.keyPressHandler = function(evnt) {
   };
 
   if (charStr) {
-    window.sendMessage("keyboard", escape(charStr));
+    window.sendMessage(window.current_shell + ":keys", escape(charStr));
     return false;
   } else {
     return true;
@@ -231,7 +233,12 @@ window.updateServer = function(server) {
 // handlers.
 window.onload = function() {
   (function() {
+    window.current_shell = undefined;
+    window.key_rep_state = 0;
+    window.key_rep_str = "";
+
     ws = new WebSocket('ws://' + window.location.host + '/sockets');
+    window.ws = ws;
 
     ws.onopen = function()    {
       console.log('Websocket opened.');
@@ -243,10 +250,6 @@ window.onload = function() {
     ws.onclose = function() { console.log('Websocket closed.'); };
     ws.onerror = function(msg) { console.log(msg); };
     ws.onmessage = function(msg) { handleMessage(JSON.parse(msg.data)); };
-
-    window.key_rep_state = 0;
-    window.key_rep_str = "";
-
-    window.ws = ws;
   })();
 };
+
