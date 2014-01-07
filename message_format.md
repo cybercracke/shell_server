@@ -16,6 +16,6 @@ data contents for different types:
 
 keys:<shell>: <str>
 servers:      [{'name' => '<server name>', 'uuid' => '<server uuid>'}]
-servers:new   "<uuid of server>"
+servers:new   "" (data would be redundant)
 shell:new:    "" | "<key>"
 
