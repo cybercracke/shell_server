@@ -169,6 +169,15 @@ __END__
     };
   };
 
+  // Request a new shell for the specific server, if the server accepts it it's
+  // message will trigger the new shell display.
+  var newShell = function(server_uuid) {
+    shell_request = {};
+    shell_request['type'] = 'new_shell';
+    shell_request['server'] = server_uuid;
+    window.ws.send(JSON.stringify(shell_request));
+  };
+
   // Handles opening new and existing shells. If the shell_id is missing it
   // assumes a new shell needs to be created, otherwise it'll attempt to
   // display the existing shell. Due to the initial state required we can't
@@ -177,7 +186,7 @@ __END__
   var openShell = function(server_uuid, shell_id) {
     if (window.servers[server_uuid] !== undefined) {
       if (shell_id === undefined) {
-        console.log(server_uuid + ':' + shell_id);
+        newShell(server_uuid);
       } else {
         // Attempt to display a hidden shell
         showShell(server_uuid, shell_id);
@@ -188,8 +197,8 @@ __END__
   };
 
   // Display an already existing shell.
-  var showShell = function(server, shell_id) {
-    node = document.getElementById(server + ':' + shell_id);
+  var showShell = function(server_uuid, shell_id) {
+    node = document.getElementById(server_uuid + ':' + shell_id);
 
     if (node !== undefined) {
       // Hide all the shells before displaying a new one.
