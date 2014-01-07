@@ -1,5 +1,8 @@
 
 require 'json'
+
+require 'redis'
+require 'hiredis'
 require 'sinatra/base'
 require 'sinatra-websocket'
 
@@ -9,6 +12,11 @@ class ShellClient
   def initialize(web_socket)
     @web_socket = web_socket
     @ip = Addrinfo.new(web_socket.get_peername).ip_unpack
+  end
+
+  def publish(channel, message)
+    puts "#{channel}: #{message}"
+    web_socket.send(JSON.generate({'type' => channel, 'data' => message}))
   end
 
   def send(msg)
@@ -21,7 +29,18 @@ class App < Sinatra::Base
   enable :logging, :inline_templates
 
   set :root, File.expand_path(File.dirname(__FILE__))
-  set :shell_clients, []
+  set(:publisher, Thread.new do
+    redis = Redis.new
+    Thread.current['shell_clients'] = []
+
+    redis.subscribe('shells:*') do |on|
+      on.message do |channel, message|
+        Thread.current['shell_clients'].each do |sc|
+          sc.publish(channel, message)
+        end
+      end
+    end
+  end)
 
   configure :development do
     enable :raise_errors
@@ -38,20 +57,20 @@ class App < Sinatra::Base
     request.websocket do |ws|
       ws.onopen do
         sc = ShellClient.new(ws)
+        sc.send(JSON.generate(get_shell_servers))
         logger.info("Websocket opened from #{sc.ip.join(':')}")
 
-        sc.send(JSON.generate(get_shell_servers))
-        settings.shell_clients << sc
+        settings.publisher['shell_clients'] << sc
       end
 
       ws.onmessage do |msg|
-        EM.next_tick { settings.shell_clients.each{ |s| s.send(msg) } }
+        EM.next_tick { settings.publisher['shell_clients'].each{ |sc| s.send(msg) } }
       end
 
       ws.onclose do
         sc = settings.shell_clients.select { |s| s.web_socket == ws }.first
         logger.info("Websocket closed from #{sc.ip.join(':')}")
-        settings.shell_clients.delete_if { |s| s.web_socket == ws }
+        settings.publisher['shell_clients'].delete(sc)
       end
     end
   end
