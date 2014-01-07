@@ -9,24 +9,6 @@ require 'sinatra-websocket'
 
 JSON.create_id = nil
 
-module MessageHandler
-  def process(message, clients, source)
-    message = JSON.parse(message)
-
-    if message.has_key?('dest')
-      dest = clients.select { |sc| sc.id == message['dest'] }.first
-      return if dest.nil?
-      dest.publish(message['type'], message['data'], source.id)
-    else
-      clients.each do |sc|
-        sc.publish(message['type'], message['data'], source.id)
-      end
-    end
-  end
-
-  module_function :process
-end
-
 class ShellClient
   attr_reader :id, :ip, :web_socket
 
@@ -37,12 +19,11 @@ class ShellClient
     @ip = '[%s]:%s' % Addrinfo.new(web_socket.get_peername).ip_unpack
   end
 
-  def publish(channel, message, source)
+  def publish(channel, message)
     # Don't send messages sent from this client back to its self.
     #return if source == id
 
-    message_type = channel.split(':')[1..-1]
-    web_socket.send(JSON.generate({'type' => channel, 'data' => message, 'source' => source}))
+    web_socket.send(message)
   end
 
   def send(msg)
@@ -65,11 +46,8 @@ class App < Sinatra::Base
     redis = Redis.new(driver: :hiredis)
     redis.subscribe('shells') do |on|
       on.message do |_, message|
-        type = JSON.parse(message)['type']
-        chan = type.split(':')[1..-1].join(':')
-
         Thread.current['shell_clients'].each do |sc|
-          sc.publish(chan, message)
+          sc.publish('shells', message)
         end
       end
     end
@@ -128,13 +106,8 @@ class App < Sinatra::Base
     # browser.
     def get_shell_servers
       {
-        'type' => 'shells:servers',
-        'data' => {
-          'servers' => [
-            {'name' => 'test1', 'shell_keys' => ['asdf', 'quiten'], 'uuid' => SecureRandom.uuid},
-            {'name' => 'test2', 'shell_keys' => [], 'uuid' => SecureRandom.uuid}
-          ]
-        }
+        't' => 'servers',
+        'd' => { 'servers' => [] }
       }
     end
   end
@@ -169,10 +142,6 @@ __END__
 <div id="shell_servers">
 </div>
 <div id="shells">
-  <div id="uuid:astkjf"><p>Something 1</p></div>
-  <div id="uuid:aldkjf"><p>Something 2</p></div>
-  <div id="uuid:asdkjf"><p>Something 3</p></div>
-  <div id="uuid:aslkjf"><p>Something 4</p></div>
 </div>
 
 <script type="text/javascript" src='/app.js'></script>
