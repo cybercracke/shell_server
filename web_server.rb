@@ -9,6 +9,19 @@ require 'sinatra-websocket'
 
 JSON.create_id = nil
 
+module MessageHandler
+  def process(message, clients, source)
+    message = JSON.parse(message)
+    puts(message.inspect)
+
+    clients.each do |sc|
+      sc.publish(message['type'], message['data'], source.id)
+    end
+  end
+
+  module_function :process
+end
+
 class ShellClient
   attr_reader :id, :ip, :web_socket
 
@@ -77,13 +90,7 @@ class App < Sinatra::Base
 
       ws.onmessage do |msg|
         source = settings.publisher['shell_clients'].select { |sc| sc.web_socket == ws }.first
-        EM.next_tick do
-          settings.publisher['shell_clients'].each do |sc|
-            message = JSON.parse(msg)
-            logger.info(msg)
-            sc.publish(message['type'], message['data'], source.id)
-          end
-        end
+        EM.next_tick { MessageHandler.process(msg, settings.publisher['shell_clients'], source) }
       end
 
       ws.onclose do
