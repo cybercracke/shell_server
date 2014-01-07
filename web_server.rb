@@ -108,13 +108,12 @@ class App < Sinatra::Base
   end
 
   helpers do
-    # TODO: Get shells from redis instance and send to populate the client's
-    # browser.
     def get_shell_servers
-      {
-        't' => 'servers',
-        'd' => { 'servers' => [] }
-      }
+      servers = settings.redis.smembers('shells:servers').map do |s|
+        JSON.parse(s)
+      end
+
+      { 'ty' => 'servers', 'da' => servers }
     end
   end
 end

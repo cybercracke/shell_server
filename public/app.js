@@ -10,16 +10,6 @@ window.drawServers = function() {
     serverLi = document.createElement('li');
     serverLi.innerText = window.servers[uuid]['name'];
     serverLi.setAttribute('data-uuid', uuid);
-
-    newShellList = document.createElement('ul');
-
-    for (i in window.servers[uuid]['shell_keys']) {
-      shellLi = document.createElement('li');
-      shellLi.innerText = window.servers[uuid]['shell_keys'][i];
-      newShellList.appendChild(shellLi);
-    };
-
-    serverLi.appendChild(newShellList);
     newServerList.appendChild(serverLi);
   };
 
@@ -34,9 +24,9 @@ window.drawServers = function() {
 
 // The generic message handler for everything coming in from a websocket.
 window.handleMessage = function(msg) {
-  switch(msg.type) {
-    case 'shells:servers':
-      for (i in msg.data.servers) { window.updateServer(msg.data.servers[i]); };
+  switch(msg.ty) {
+    case 'servers':
+      for (i in msg.da) { window.updateServer(msg.da[i]); };
       window.drawServers();
       break;
     default:
@@ -115,7 +105,7 @@ window.keyDownHandler = function(evnt) {
 
     window.key_rep_state = 1;
     window.key_rep_str = charStr;
-    window.sendMessage(window.current_shell + ":keys", escape(charStr));
+    window.sendMessage("keys:" + window.current_shell, escape(charStr));
 
     return false;
   } else {
@@ -152,7 +142,7 @@ window.keyPressHandler = function(evnt) {
   };
 
   if (charStr) {
-    window.sendMessage(window.current_shell + ":keys", escape(charStr));
+    window.sendMessage("keys:" + window.current_shell, escape(charStr));
     return false;
   } else {
     return true;
@@ -174,9 +164,7 @@ window.hideAllShells = function() {
 // Request a new shell for the specific server, if the server accepts it it's
 // message will trigger the new shell display.
 window.newShell = function(server_uuid) {
-  message = {};
-  message['uuid'] = server_uuid;
-  window.sendMessage('new', message);
+  window.sendMessage('shell:new', '', server_uuid);
 };
 
 // Handles opening new and existing shells. If the shell_id is missing it
@@ -198,15 +186,17 @@ window.openShell = function(server_uuid, shell_id) {
 };
 
 // Sends a message of our data type through the websocket.
-window.sendMessage = function(type, data) {
+window.sendMessage = function(type, data, dest) {
   shell_request = {};
-  shell_request['type'] = 'shells:' + type;
-  shell_request['data'] = data
+  shell_request['ty'] = type;
+  shell_request['da'] = data;
+
+  if (dest === undefined) shell_request['de'] = dest;
 
   if (window.ws.readyState == 1) {
     window.ws.send(JSON.stringify(shell_request));
   } else {
-    console.log("Websocket isn't available for writing");
+    console.log("Websocket isn't available for writing.");
   };
 };
 
@@ -228,7 +218,7 @@ window.showShell = function(server_uuid, shell_id) {
 window.updateServer = function(server) {
   window.servers[server.uuid] = {};
   window.servers[server.uuid]['name'] = server.name;
-  window.servers[server.uuid]['shell_keys'] = server.shell_keys;
+  window.servers[server.uuid]['shells'] = [];
 };
 
 // Setup the websocket when the page finishes loading as well as the message
