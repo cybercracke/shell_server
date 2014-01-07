@@ -9,6 +9,16 @@ require 'sinatra-websocket'
 
 JSON.create_id = nil
 
+module MessageHandler
+  def process(message)
+    Thread.current['shell_clients'].each do |sc|
+      sc.publish(message)
+    end
+  end
+
+  module_function :process
+end
+
 class ShellClient
   attr_reader :id, :ip, :web_socket
 
@@ -19,10 +29,7 @@ class ShellClient
     @ip = '[%s]:%s' % Addrinfo.new(web_socket.get_peername).ip_unpack
   end
 
-  def publish(channel, message)
-    # Don't send messages sent from this client back to its self.
-    #return if source == id
-
+  def publish(message)
     web_socket.send(message)
   end
 
@@ -46,9 +53,7 @@ class App < Sinatra::Base
     redis = Redis.new(driver: :hiredis)
     redis.subscribe('shells') do |on|
       on.message do |_, message|
-        Thread.current['shell_clients'].each do |sc|
-          sc.publish('shells', message)
-        end
+        MessageHandler.process(message)
       end
     end
   end)
@@ -71,6 +76,7 @@ class App < Sinatra::Base
       ws.onopen do
         sc = ShellClient.new(ws)
         sc.send(JSON.generate(get_shell_servers))
+
         logger.info("Websocket opened from #{sc.ip}")
 
         settings.publisher['shell_clients'] << sc
