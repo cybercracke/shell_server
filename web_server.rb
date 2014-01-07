@@ -8,11 +8,22 @@ require 'sinatra/base'
 require 'sinatra-websocket'
 
 JSON.create_id = nil
+WS_UUID = SecureRandom.uuid
+
+Thread.current[:redis] = Redis.new(driver: :hiredis)
 
 module MessageHandler
-  def process(message)
-    Thread.current['shell_clients'].each do |sc|
-      sc.send(message)
+  def process(raw_message)
+    msg = JSON.parse(raw_message)
+
+    Thread.current[:shell_clients].each do |sc|
+      if msg['ty'] == 'servers:new'
+        sc.send_shell_servers
+      else
+        if !msg.has_key('de') || msg['de'] == sc.id
+          sc.send(raw_message)
+        end
+      end
     end
   end
 
@@ -27,11 +38,20 @@ class ShellClient
     @web_socket = web_socket
     @subscriptions = []
     @ip = '[%s]:%s' % Addrinfo.new(web_socket.get_peername).ip_unpack
+
+    send_shell_servers
   end
 
   def send(msg)
     msg = JSON.parse(msg) if msg.is_a?(String)
     web_socket.send(JSON.generate(msg))
+  end
+
+  def send_shell_servers
+    servers = Thread.current[:redis].smembers('shells:servers').map do |s|
+      JSON.parse(s)
+    end
+    send({ 'ty' => 'servers', 'da' => servers, 'de' => id, 'so' => WS_UUID })
   end
 end
 
@@ -45,17 +65,14 @@ class App < Sinatra::Base
   # redis. Most of the logic around the communications is handled by the
   # ShellClient publisher.
   set(:publisher, Thread.new do
-    Thread.current['shell_clients'] = []
-
-    redis = Redis.new(driver: :hiredis)
-    redis.subscribe('shells') do |on|
+    Thread.current[:shell_clients] = []
+    Thread.current[:redis] = Redis.new(driver: :hiredis)
+    Thread.current[:redis].subscribe('shells') do |on|
       on.message do |_, message|
         MessageHandler.process(message)
       end
     end
   end)
-
-  set :redis, Redis.new(driver: :hiredis)
 
   configure :development do
     enable :raise_errors
@@ -72,26 +89,23 @@ class App < Sinatra::Base
     request.websocket do |ws|
       ws.onopen do
         sc = ShellClient.new(ws)
-        sc.send(get_shell_servers)
-
         logger.info("Websocket opened from #{sc.ip}")
-
-        settings.publisher['shell_clients'] << sc
+        settings.publisher[:shell_clients] << sc
       end
 
       ws.onmessage do |msg|
         message = JSON.parse(msg)
 
-        source = settings.publisher['shell_clients'].select { |sc| sc.web_socket == ws }.first
+        source = settings.publisher[:shell_clients].select { |sc| sc.web_socket == ws }.first
         message['so'] = source.id
 
-        EM.next_tick { settings.redis.publish('shells', JSON.generate(message)) }
+        EM.next_tick { Thread.current[:redis].publish('shells', JSON.generate(message)) }
       end
 
       ws.onclose do
-        sc = settings.publisher['shell_clients'].select { |s| s.web_socket == ws }.first
+        sc = settings.publisher[:shell_clients].select { |s| s.web_socket == ws }.first
         logger.info("Websocket closed from #{sc.ip}")
-        settings.publisher['shell_clients'].delete(sc)
+        settings.publisher[:shell_clients].delete(sc)
       end
     end
   end
@@ -102,16 +116,6 @@ class App < Sinatra::Base
 
   error do
     erb "Oh the humanity! An error occurred"
-  end
-
-  helpers do
-    def get_shell_servers
-      servers = settings.redis.smembers('shells:servers').map do |s|
-        JSON.parse(s)
-      end
-
-      { 'ty' => 'servers', 'da' => servers }
-    end
   end
 end
 
