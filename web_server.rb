@@ -12,7 +12,7 @@ JSON.create_id = nil
 module MessageHandler
   def process(message)
     Thread.current['shell_clients'].each do |sc|
-      sc.publish(message)
+      sc.send(message)
     end
   end
 
@@ -29,12 +29,10 @@ class ShellClient
     @ip = '[%s]:%s' % Addrinfo.new(web_socket.get_peername).ip_unpack
   end
 
-  def publish(message)
-    web_socket.send(message)
-  end
-
   def send(msg)
-    web_socket.send(msg)
+    msg = JSON.parse(msg) if msg.is_a?(String)
+    msg['de'] = id
+    web_socket.send(JSON.generate(msg))
   end
 end
 
@@ -75,7 +73,7 @@ class App < Sinatra::Base
     request.websocket do |ws|
       ws.onopen do
         sc = ShellClient.new(ws)
-        sc.send(JSON.generate(get_shell_servers))
+        sc.send(get_shell_servers)
 
         logger.info("Websocket opened from #{sc.ip}")
 
@@ -86,7 +84,7 @@ class App < Sinatra::Base
         message = JSON.parse(msg)
 
         source = settings.publisher['shell_clients'].select { |sc| sc.web_socket == ws }.first
-        message['source'] = source.id
+        message['so'] = source.id
 
         EM.next_tick { settings.redis.publish('shells', JSON.generate(message)) }
       end
