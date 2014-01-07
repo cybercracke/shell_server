@@ -31,7 +31,6 @@ class ShellClient
 
   def send(msg)
     msg = JSON.parse(msg) if msg.is_a?(String)
-    msg['de'] = id
     web_socket.send(JSON.generate(msg))
   end
 end
