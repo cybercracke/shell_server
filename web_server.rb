@@ -62,16 +62,14 @@ class App < Sinatra::Base
   set(:publisher, Thread.new do
     Thread.current['shell_clients'] = []
 
-    logger = Logger.new('logs/publisher.log')
-    logger.info("Spawing publisher thread")
-
     redis = Redis.new(driver: :hiredis)
-    redis.psubscribe('shells:*') do |on|
-      on.message do |channel, message|
-        logger.warn(sprintf("[%s]: %s\n", channel, message))
+    redis.subscribe('shells') do |on|
+      on.message do |_, message|
+        type = JSON.parse(message)['type']
+        chan = type.split(':')[1..-1].join(':')
 
         Thread.current['shell_clients'].each do |sc|
-          sc.publish(channel, message)
+          sc.publish(chan, message)
         end
       end
     end
@@ -106,9 +104,7 @@ class App < Sinatra::Base
         source = settings.publisher['shell_clients'].select { |sc| sc.web_socket == ws }.first
         message['source'] = source.id
 
-        channel = "shells:#{message['type']}"
-
-        EM.next_tick { settings.redis.publish(channel, JSON.generate(message)) }
+        EM.next_tick { settings.redis.publish('shells', JSON.generate(message)) }
       end
 
       ws.onclose do

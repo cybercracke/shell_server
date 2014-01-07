@@ -9,7 +9,7 @@ logger.info("Starting up shell server")
 
 redis = Redis.new(driver: :hiredis)
 
-redis.psubscribe('*') do |on|
+redis.subscribe('shells') do |on|
   on.message do |channel, message|
     logger.info(sprintf("[%s]: %s\n", channel, message))
   end
