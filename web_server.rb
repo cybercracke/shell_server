@@ -21,7 +21,7 @@ class ShellClient
 
   def publish(channel, message, source)
     # Don't send messages sent from this client back to its self.
-    return if source == id
+    #return if source == id
 
     message_type = channel.split(':')[1..-1]
     web_socket.send(JSON.generate({'type' => channel, 'data' => message, 'source' => source}))
@@ -45,7 +45,7 @@ class App < Sinatra::Base
     redis = Redis.new
     Thread.current['shell_clients'] = []
 
-    redis.subscribe('shells:*') do |on|
+    redis.psubscribe('shells:*') do |on|
       on.message do |channel, message|
         Thread.current['shell_clients'].each do |sc|
           sc.publish(channel, message)
@@ -80,6 +80,7 @@ class App < Sinatra::Base
         EM.next_tick do
           settings.publisher['shell_clients'].each do |sc|
             message = JSON.parse(msg)
+            logger.info(msg)
             sc.publish(message['type'], message['data'], source.id)
           end
         end

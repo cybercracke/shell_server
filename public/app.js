@@ -3,7 +3,7 @@ window.servers = {};
 
 // Anytime the server list gets updated we'll need to redraw the list. This
 // function handles it.
-var drawServers = function() {
+window.drawServers = function() {
   newServerList = document.createElement('ul');
 
   for (uuid in window.servers) {
@@ -24,16 +24,20 @@ var drawServers = function() {
   };
 
   shellServerElement = document.getElementById('shell_servers');
+  if (shellServerElement === null) {
+    return;
+  };
+
   shellServerElement.innerHTML = "";
   shellServerElement.appendChild(newServerList);
 };
 
 // The generic message handler for everything coming in from a websocket.
-var handleMessage = function(msg) {
+window.handleMessage = function(msg) {
   switch(msg.type) {
     case 'shells:servers':
-      for (i in msg.data.servers) { updateServer(msg.data.servers[i]); };
-      drawServers();
+      for (i in msg.data.servers) { window.updateServer(msg.data.servers[i]); };
+      window.drawServers();
       break;
     default:
       console.log(msg);
@@ -41,7 +45,7 @@ var handleMessage = function(msg) {
 };
 
 // Loop through all shell elements and hide them from being displayed.
-var hideAllShells = function() {
+window.hideAllShells = function() {
   shellElements = document.getElementById('shells').childNodes;
   for (i in shellElements) {
     node = shellElements[i];
@@ -54,10 +58,10 @@ var hideAllShells = function() {
 
 // Request a new shell for the specific server, if the server accepts it it's
 // message will trigger the new shell display.
-var newShell = function(server_uuid) {
+window.newShell = function(server_uuid) {
   message = {};
   message['uuid'] = server_uuid;
-  sendMessage('new', message);
+  window.sendMessage('new', message);
 };
 
 // Handles opening new and existing shells. If the shell_id is missing it
@@ -65,13 +69,13 @@ var newShell = function(server_uuid) {
 // display the existing shell. Due to the initial state required we can't
 // attempt to rejoin another shell yet, however, shells other than the
 // current one can simple be hidden.
-var openShell = function(server_uuid, shell_id) {
+window.openShell = function(server_uuid, shell_id) {
   if (window.servers[server_uuid] !== undefined) {
     if (shell_id === undefined) {
-      newShell(server_uuid);
+      window.newShell(server_uuid);
     } else {
       // Attempt to display a hidden shell
-      showShell(server_uuid, shell_id);
+      window.showShell(server_uuid, shell_id);
     }
   } else {
     console.log("Attempted to open a shell to a server that doesn't exist.");
@@ -79,20 +83,25 @@ var openShell = function(server_uuid, shell_id) {
 };
 
 // Sends a message of our data type through the websocket.
-var sendMessage = function(type, data) {
+window.sendMessage = function(type, data) {
   shell_request = {};
   shell_request['type'] = 'shells:' + type;
   shell_request['data'] = data
-  window.ws.send(JSON.stringify(shell_request));
+
+  if (window.ws.readyState == 1) {
+    window.ws.send(JSON.stringify(shell_request));
+  } else {
+    console.log("Websocket isn't available for writing");
+  };
 };
 
 // Display an already existing shell.
-var showShell = function(server_uuid, shell_id) {
+window.showShell = function(server_uuid, shell_id) {
   node = document.getElementById(server_uuid + ':' + shell_id);
 
   if (node !== undefined) {
     // Hide all the shells before displaying a new one.
-    hideAllShells();
+    window.hideAllShells();
     node.style.display = 'block';
   } else {
     console.log("Error: Attempted to display shell that doesn't exist");
@@ -101,7 +110,7 @@ var showShell = function(server_uuid, shell_id) {
 
 // When a change is reported about a server we can use the data provided from
 // the websocket to update our server list.
-var updateServer = function(server) {
+window.updateServer = function(server) {
   window.servers[server.uuid] = {};
   window.servers[server.uuid]['name'] = server.name;
   window.servers[server.uuid]['shell_keys'] = server.shell_keys;
