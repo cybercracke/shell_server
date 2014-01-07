@@ -13,9 +13,6 @@ module MessageHandler
   def process(message, clients, source)
     message = JSON.parse(message)
 
-    # Debugging / Logging to STDOUT
-    puts(message.inspect)
-
     if message.has_key?('dest')
       dest = clients.select { |sc| sc.id == message['dest'] }.first
       return if dest.nil?
@@ -37,7 +34,7 @@ class ShellClient
     @id = SecureRandom.uuid
     @web_socket = web_socket
     @subscriptions = []
-    @ip = sprintf('[%s]:%s' % Addrinfo.new(web_socket.get_peername).ip_unpack)
+    @ip = '[%s]:%s' % Addrinfo.new(web_socket.get_peername).ip_unpack
   end
 
   def publish(channel, message, source)
@@ -63,17 +60,24 @@ class App < Sinatra::Base
   # redis. Most of the logic around the communications is handled by the
   # ShellClient publisher.
   set(:publisher, Thread.new do
-    redis = Redis.new
     Thread.current['shell_clients'] = []
 
+    logger = Logger.new('logs/publisher.log')
+    logger.info("Spawing publisher thread")
+
+    redis = Redis.new(driver: :hiredis)
     redis.psubscribe('shells:*') do |on|
       on.message do |channel, message|
+        logger.warn(sprintf("[%s]: %s\n", channel, message))
+
         Thread.current['shell_clients'].each do |sc|
           sc.publish(channel, message)
         end
       end
     end
   end)
+
+  set :redis, Redis.new(driver: :hiredis)
 
   configure :development do
     enable :raise_errors
@@ -97,8 +101,14 @@ class App < Sinatra::Base
       end
 
       ws.onmessage do |msg|
+        message = JSON.parse(msg)
+
         source = settings.publisher['shell_clients'].select { |sc| sc.web_socket == ws }.first
-        EM.next_tick { MessageHandler.process(msg, settings.publisher['shell_clients'], source) }
+        message['source'] = source.id
+
+        channel = "shells:#{message['type']}"
+
+        EM.next_tick { settings.redis.publish(channel, JSON.generate(message)) }
       end
 
       ws.onclose do
