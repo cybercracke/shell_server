@@ -1,22 +1,30 @@
 
 require 'json'
+require 'securerandom'
 
 require 'redis'
 require 'hiredis'
 require 'sinatra/base'
 require 'sinatra-websocket'
 
+JSON.create_id = nil
+
 class ShellClient
-  attr_reader :ip, :web_socket
+  attr_reader :id, :ip, :web_socket
 
   def initialize(web_socket)
+    @id = SecureRandom.uuid
     @web_socket = web_socket
-    @ip = Addrinfo.new(web_socket.get_peername).ip_unpack
+    @subscriptions = []
+    @ip = sprintf('[%s]:%s' % Addrinfo.new(web_socket.get_peername).ip_unpack)
   end
 
-  def publish(channel, message)
-    puts "#{channel}: #{message}"
-    web_socket.send(JSON.generate({'type' => channel, 'data' => message}))
+  def publish(channel, message, source)
+    # Don't send messages sent from this client back to its self.
+    return if source == id
+
+    message_type = channel.split(':')[1..-1]
+    web_socket.send(JSON.generate({'type' => channel, 'data' => message, 'source' => source}))
   end
 
   def send(msg)
@@ -29,6 +37,10 @@ class App < Sinatra::Base
   enable :logging, :inline_templates
 
   set :root, File.expand_path(File.dirname(__FILE__))
+
+  # This is the handler for communicating back and forth between websockets and
+  # redis. Most of the logic around the communications is handled by the
+  # ShellClient publisher.
   set(:publisher, Thread.new do
     redis = Redis.new
     Thread.current['shell_clients'] = []
@@ -58,18 +70,24 @@ class App < Sinatra::Base
       ws.onopen do
         sc = ShellClient.new(ws)
         sc.send(JSON.generate(get_shell_servers))
-        logger.info("Websocket opened from #{sc.ip.join(':')}")
+        logger.info("Websocket opened from #{sc.ip}")
 
         settings.publisher['shell_clients'] << sc
       end
 
       ws.onmessage do |msg|
-        EM.next_tick { settings.publisher['shell_clients'].each{ |sc| s.send(msg) } }
+        source = settings.publisher['shell_clients'].select { |sc| sc.web_socket == ws }.first
+        EM.next_tick do
+          settings.publisher['shell_clients'].each do |sc|
+            message = JSON.parse(msg)
+            sc.publish(message['type'], message['data'], source.id)
+          end
+        end
       end
 
       ws.onclose do
-        sc = settings.shell_clients.select { |s| s.web_socket == ws }.first
-        logger.info("Websocket closed from #{sc.ip.join(':')}")
+        sc = settings.publisher['shell_clients'].select { |s| s.web_socket == ws }.first
+        logger.info("Websocket closed from #{sc.ip}")
         settings.publisher['shell_clients'].delete(sc)
       end
     end
@@ -88,11 +106,13 @@ class App < Sinatra::Base
     # browser.
     def get_shell_servers
       {
-        'type' => 'server_list',
-        'servers' => [
-          {'name' => 'test1', 'shell_keys' => ['asdf', 'quiten'], 'uuid' => SecureRandom.uuid},
-          {'name' => 'test2', 'shell_keys' => [], 'uuid' => SecureRandom.uuid}
-        ],
+        'type' => 'shell:servers',
+        'data' => {
+          'servers' => [
+            {'name' => 'test1', 'shell_keys' => ['asdf', 'quiten'], 'uuid' => SecureRandom.uuid},
+            {'name' => 'test2', 'shell_keys' => [], 'uuid' => SecureRandom.uuid}
+          ]
+        }
       }
     end
   end
@@ -127,7 +147,7 @@ __END__
 <div id="shell_servers">
 </div>
 <div id="shells">
-  <div id="uuid:asldkjf"><p>Something 1</p></div>
+  <div id="uuid:astkjf"><p>Something 1</p></div>
   <div id="uuid:aldkjf"><p>Something 2</p></div>
   <div id="uuid:asdkjf"><p>Something 3</p></div>
   <div id="uuid:aslkjf"><p>Something 4</p></div>
@@ -167,8 +187,8 @@ __END__
   // The generic message handler for everything coming in from a websocket.
   var handleMessage = function(msg) {
     switch(msg.type) {
-      case 'server_list':
-        for (i in msg.servers) { updateServer(msg.servers[i]); };
+      case 'shells:servers':
+        for (i in msg.data.servers) { updateServer(msg.data.servers[i]); };
         drawServers();
         break;
       default:
@@ -191,10 +211,9 @@ __END__
   // Request a new shell for the specific server, if the server accepts it it's
   // message will trigger the new shell display.
   var newShell = function(server_uuid) {
-    shell_request = {};
-    shell_request['type'] = 'new_shell';
-    shell_request['server'] = server_uuid;
-    window.ws.send(JSON.stringify(shell_request));
+    message = {};
+    message['uuid'] = server_uuid;
+    sendMessage('new', message);
   };
 
   // Handles opening new and existing shells. If the shell_id is missing it
@@ -213,6 +232,14 @@ __END__
     } else {
       console.log("Attempted to open a shell to a server that doesn't exist.");
     };
+  };
+
+  // Sends a message of our data type through the websocket.
+  var sendMessage = function(type, data) {
+    shell_request = {};
+    shell_request['type'] = 'shells:' + type;
+    shell_request['data'] = data
+    window.ws.send(JSON.stringify(shell_request));
   };
 
   // Display an already existing shell.
