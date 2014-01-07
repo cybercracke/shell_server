@@ -14,8 +14,6 @@ shell:new      => spawn a new shell on a target server
 
 data contents for different types:
 
-keys:<shellid>
-
 keys:<shell>: <str>
 servers:      [{'name' => '<server name>', 'uuid' => '<server uuid>'}]
 shell:new:    "" | "<key>"
