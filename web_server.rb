@@ -12,10 +12,18 @@ JSON.create_id = nil
 module MessageHandler
   def process(message, clients, source)
     message = JSON.parse(message)
+
+    # Debugging / Logging to STDOUT
     puts(message.inspect)
 
-    clients.each do |sc|
-      sc.publish(message['type'], message['data'], source.id)
+    if message.has_key?('dest')
+      dest = clients.select { |sc| sc.id == message['dest'] }.first
+      return if dest.nil?
+      dest.publish(message['type'], message['data'], source.id)
+    else
+      clients.each do |sc|
+        sc.publish(message['type'], message['data'], source.id)
+      end
     end
   end
 
