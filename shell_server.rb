@@ -15,11 +15,11 @@ module MessageHandler
   def process(raw_message)
     message = JSON.parse(raw_message)
 
-    # Log the message we received
-    $logger.info(raw_message)
-
     # Ignore any message not destined for us
     return if message['de'] != UUID
+
+    # Log the message we received
+    $logger.info(raw_message)
 
     case message['ty']
     when 'shell:new'

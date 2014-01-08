@@ -26,7 +26,9 @@ module MessageHandler
       when 'servers:new', 'servers:removed'
         sc.send_shell_servers
       else
-        if !msg.has_key?('de') || msg['de'] == sc.id
+        # Don't echo our messages back to ourselves, and only send messages to
+        # their intended destination if a destination is provided.
+        if msg['so'] != sc.id && (!msg.has_key?('de') || msg['de'] == sc.id)
           sc.send(raw_message)
         end
       end
@@ -56,7 +58,10 @@ class ShellClient
   end
 
   def send_shell_servers
-    servers = Thread.current[:redis].smembers('shells:servers').map do |s|
+    puts "Sending new server list"
+    servers = Thread.current[:redis].smembers('shells:servers')
+    raise "No servers error" if servers.nil? || servers.empty?
+    servers.map! do |s|
       JSON.parse(s)
     end
     send({ 'ty' => 'servers', 'da' => servers, 'de' => id, 'so' => WS_UUID })
@@ -144,6 +149,19 @@ __END__
       body {
         line-height: 1.4em;
         font-size: 1.1em;
+      }
+
+      .hidden.shell {
+        display: none;
+      }
+
+      .current.shell {
+        display: block;
+        height: 24em;
+        width: 80em;
+        background: #333;
+        color: #efefef;
+        font-family: monospace;
       }
     </style>
   </head>
