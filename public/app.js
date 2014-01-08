@@ -73,7 +73,6 @@ window.handleMessage = function(msg) {
         // Create our shell node
         newShellNode = document.createElement('pre');
         newShellNode.setAttribute('id', msg.so + ':' + msg.da);
-        newShellNode.setAttribute('class', 'shell');
         newShellNode.className = 'hidden shell';
 
         // Append the shell node to the page
