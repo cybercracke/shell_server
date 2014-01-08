@@ -24,6 +24,8 @@ module MessageHandler
       shell_id = SecureRandom.hex(4)
       $logger.info("[%s]: Opening new shell %s\n" % [UUID, shell_id])
       Thread.current[:redis].publish('shells', JSON.generate({'so' => UUID, 'de' => message['so'], 'ty' => 'shell:new', 'da' => shell_id}))
+
+      PTYS[shell_id] = :placeholder
     when /^keys:/
       shell_key = message['ty'].split(':').last
 
@@ -31,6 +33,9 @@ module MessageHandler
         $logger.warn("Attempted to send keys to invalid shell session")
         return
       end
+
+      # For now lets just echo them back to the user
+      Thread.current[:redis].publish('shells', JSON.generate({'so' => UUID, 'de' => message['so'], 'ty' => message['ty'], 'da' => message['da']}))
     else
       $logger.info(raw_message)
     end
