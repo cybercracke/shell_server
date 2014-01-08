@@ -13,7 +13,12 @@ WS_UUID = SecureRandom.uuid
 Thread.current[:redis] = Redis.new(driver: :hiredis)
 
 module MessageHandler
+  def logger
+    @@logger ||= Logger.new('logs/publisher.log')
+  end
+
   def process(raw_message)
+    logger.info(raw_message)
     msg = JSON.parse(raw_message)
 
     Thread.current[:shell_clients].each do |sc|
@@ -21,16 +26,16 @@ module MessageHandler
       when 'servers:new', 'servers:removed'
         sc.send_shell_servers
       else
-        if !msg.has_key('de') || msg['de'] == sc.id
+        if !msg.has_key?('de') || msg['de'] == sc.id
           sc.send(raw_message)
         end
       end
     end
   rescue => e
-    puts "MessageHandler broke because: #{e.message}"
+    logger.error("MessageHandler broke because: #{e.message}")
   end
 
-  module_function :process
+  module_function :logger, :process
 end
 
 class ShellClient
