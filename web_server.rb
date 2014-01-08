@@ -159,6 +159,7 @@ __END__
         font-family: monospace;
         line-height: 1.2em;
         padding: 1.0em;
+        overflow: auto;
       }
 
       .hidden.shell {
