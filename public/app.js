@@ -87,6 +87,8 @@ window.handleMessage = function(msg) {
       };
 
       break;
+    case /^keys:/.test(msg.ty):
+      console.log('Received keys: ' + msg.da);
     default:
       console.log(msg);
   };

@@ -10,6 +10,7 @@ require 'hiredis'
 UUID = SecureRandom.uuid
 SERVER_NAME = SecureRandom.hex(10)
 PTYS = {}
+THREADS = []
 
 module MessageHandler
   def process(raw_message)
@@ -18,14 +19,20 @@ module MessageHandler
     # Ignore any message not destined for us
     return if message['de'] != UUID
 
-    # Log the message we received
-    $logger.info(raw_message)
-
     case message['ty']
     when 'shell:new'
       shell_id = SecureRandom.hex(4)
       $logger.info("[%s]: Opening new shell %s\n" % [UUID, shell_id])
       Thread.current[:redis].publish('shells', JSON.generate({'so' => UUID, 'de' => message['so'], 'ty' => 'shell:new', 'da' => shell_id}))
+    when /^keys:/
+      shell_key = message['ty'].split(':').last
+
+      unless PTYS.has_key?(shell_key)
+        $logger.warn("Attempted to send keys to invalid shell session")
+        return
+      end
+    else
+      $logger.info(raw_message)
     end
   end
 
