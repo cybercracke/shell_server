@@ -151,17 +151,22 @@ __END__
         font-size: 1.1em;
       }
 
+      .shell {
+        height: 24em;
+        width: 80em;
+        background: #333;
+        color: #efefef;
+        font-family: monospace;
+        line-height: 1.2em;
+        padding: 1.0em;
+      }
+
       .hidden.shell {
         display: none;
       }
 
       .current.shell {
         display: block;
-        height: 24em;
-        width: 80em;
-        background: #333;
-        color: #efefef;
-        font-family: monospace;
       }
     </style>
   </head>
