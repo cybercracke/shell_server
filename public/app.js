@@ -41,7 +41,7 @@ window.handleMessage = function(msg) {
       for (i in msg.da) { window.updateServer(msg.da[i]); };
       window.drawServers();
       break;
-    case 'shells:new':
+    case 'shell:new':
       // Ensure we already know about this server ignore it otherwise
       if (msg.so in window.servers) {
         // Add the shell to known shell list
@@ -51,7 +51,7 @@ window.handleMessage = function(msg) {
         newShellNode = document.createElement('pre');
         newShellNode.setAttribute('id', msg.so + ':' + msg.da);
         newShellNode.setAttribute('class', 'shell');
-        newShellNode.style.display = 'none';
+        newShellNode.className = 'hidden shell';
 
         // Append the shell node to the page
         shellList = document.getElementById('shells');
@@ -59,7 +59,8 @@ window.handleMessage = function(msg) {
 
         // Update the server list and show the appropriate shell
         window.drawServers();
-        window.showShell(msg.so, msg.da);
+        window.current_shell = msg.so + ':' + msg.da;
+        window.showCurrentShell();
       };
 
       break;
@@ -183,18 +184,6 @@ window.keyPressHandler = function(evnt) {
   };
 };
 
-// Loop through all shell elements and hide them from being displayed.
-window.hideAllShells = function() {
-  shellElements = document.getElementById('shells').childNodes;
-  for (i in shellElements) {
-    node = shellElements[i];
-
-    if (node.nodeType !== 3 && node.style !== undefined) {
-      node.style.display = 'none';
-    };
-  };
-};
-
 // Request a new shell for the specific server, if the server accepts it it's
 // message will trigger the new shell display.
 window.newShell = function(server_uuid) {
@@ -206,15 +195,15 @@ window.newShell = function(server_uuid) {
   window.sendMessage('shell:new', '', server_uuid);
 };
 
-// Handles opening new and existing shells. If the shell_id is missing it
-// assumes a new shell needs to be created, otherwise it'll attempt to
-// display the existing shell. Due to the initial state required we can't
-// attempt to rejoin another shell yet, however, shells other than the
+// Handles opening new and existing shells.  Due to the initial state required
+// we can't attempt to rejoin another shell yet, however, shells other than the
 // current one can simple be hidden.
+
 window.openShell = function(server_uuid, shell_id) {
-  if (window.servers[server_uuid] !== undefined) {
+  if ((window.servers[server_uuid] !== undefined) && (shell_id in window.servers[server_uuid]['shells'])) {
     // Attempt to display a hidden shell
-    window.showShell(server_uuid, shell_id);
+    window.current_shell = server_uuid + ':' + shell_id;
+    window.showCurrentShell();
   } else {
     console.log("Attempted to open a shell to a server that doesn't exist.");
   };
@@ -237,16 +226,20 @@ window.sendMessage = function(type, data, dest) {
 };
 
 // Display an already existing shell.
-window.showShell = function(server_uuid, shell_id) {
-  node = document.getElementById(server_uuid + ':' + shell_id);
+window.showCurrentShell = function() {
+  shell_id = window.current_shell;
 
-  if (node !== undefined) {
-    // Hide all the shells before displaying a new one.
-    window.hideAllShells();
-    node.style.display = 'block';
-    window.current_shell = server_uuid + ':' + shell_id;
-  } else {
-    console.log("Error: Attempted to display shell that doesn't exist");
+  // Initially hide everything
+  shells = document.getElementById('shells').childNodes;
+  for (i in shells) {
+    if (shells[i].nodeType !== 3) {
+      shells[i].className = 'hidden shell';
+    };
+  };
+
+  // If there is a shell find the node and make it visible
+  if (shell_id !== undefined) {
+    document.getElementById(shell_id).className = 'current shell';
   };
 };
 
