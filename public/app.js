@@ -9,7 +9,6 @@ window.drawServers = function() {
   for (uuid in window.servers) {
     serverLi = document.createElement('li');
     serverLi.innerText = window.servers[uuid]['name'];
-    serverLi.dataset['uuid'] = uuid;
 
     newShellLink = document.createElement('a');
     newShellLink.href = '#';
@@ -21,7 +20,31 @@ window.drawServers = function() {
       window.newShell(this.dataset.uuid);
     });
 
+    shellsList = document.createElement('ul');
+
+    for (i in window.servers[uuid]['shells']) {
+      shell_key = window.servers[uuid]['shells'][i];
+
+      shellLi = document.createElement('li');
+      activeShellLink = document.createElement('a');
+
+      activeShellLink.innerText = shell_key;
+      activeShellLink.href = '#';
+      activeShellLink.dataset['shell_key'] = shell_key;
+      activeShellLink.dataset['uuid'] = uuid;
+
+      activeShellLink.onclick = (function() {
+        window.event.preventDefault();
+        window.current_shell = this.dataset.uuid + ':' + this.dataset.shell_key;
+        window.showCurrentShell();
+      });
+
+      shellLi.appendChild(activeShellLink);
+      shellsList.appendChild(shellLi);
+    };
+
     serverLi.appendChild(newShellLink);
+    serverLi.appendChild(shellsList);
     newServerList.appendChild(serverLi);
   };
 
@@ -140,7 +163,9 @@ window.keyDownHandler = function(evnt) {
 
     window.key_rep_state = 1;
     window.key_rep_str = charStr;
-    window.sendMessage("keys:" + window.current_shell, escape(charStr));
+
+    shell_parts = window.current_shell.split(':');
+    window.sendMessage("keys:" + shell_parts[1], escape(charStr), shell_parts[0]);
 
     return false;
   } else {
@@ -177,7 +202,9 @@ window.keyPressHandler = function(evnt) {
   };
 
   if (charStr) {
-    window.sendMessage("keys:" + window.current_shell, escape(charStr));
+    shell_parts = window.current_shell.split(':');
+    window.sendMessage("keys:" + shell_parts[1], escape(charStr), shell_parts[0]);
+
     return false;
   } else {
     return true;
