@@ -17,7 +17,8 @@ module MessageHandler
     msg = JSON.parse(raw_message)
 
     Thread.current[:shell_clients].each do |sc|
-      if msg['ty'] == 'servers:new'
+      case msg['ty']
+      when 'servers:new', 'servers:removed'
         sc.send_shell_servers
       else
         if !msg.has_key('de') || msg['de'] == sc.id
@@ -25,6 +26,8 @@ module MessageHandler
         end
       end
     end
+  rescue => e
+    puts "MessageHandler broke because: #{e.message}"
   end
 
   module_function :process

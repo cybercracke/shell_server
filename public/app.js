@@ -9,7 +9,19 @@ window.drawServers = function() {
   for (uuid in window.servers) {
     serverLi = document.createElement('li');
     serverLi.innerText = window.servers[uuid]['name'];
-    serverLi.setAttribute('data-uuid', uuid);
+    serverLi.dataset['uuid'] = uuid;
+
+    newShellLink = document.createElement('a');
+    newShellLink.href = '#';
+    newShellLink.innerText = '(+ New Shell)';
+    newShellLink.dataset['uuid'] = uuid;
+
+    newShellLink.onclick = (function() {
+      window.event.preventDefault();
+      window.newShell(this.dataset.uuid);
+    });
+
+    serverLi.appendChild(newShellLink);
     newServerList.appendChild(serverLi);
   };
 
@@ -28,6 +40,28 @@ window.handleMessage = function(msg) {
     case 'servers':
       for (i in msg.da) { window.updateServer(msg.da[i]); };
       window.drawServers();
+      break;
+    case 'shells:new':
+      // Ensure we already know about this server ignore it otherwise
+      if (msg.so in window.servers) {
+        // Add the shell to known shell list
+        window.servers[msg.so]['shells'].push(msg.da);
+
+        // Create our shell node
+        newShellNode = document.createElement('pre');
+        newShellNode.setAttribute('id', msg.so + ':' + msg.da);
+        newShellNode.setAttribute('class', 'shell');
+        newShellNode.style.display = 'none';
+
+        // Append the shell node to the page
+        shellList = document.getElementById('shells');
+        shellList.appendChild(newShellNode);
+
+        // Update the server list and show the appropriate shell
+        window.drawServers();
+        window.showShell(msg.so, msg.da);
+      };
+
       break;
     default:
       console.log(msg);
@@ -164,6 +198,11 @@ window.hideAllShells = function() {
 // Request a new shell for the specific server, if the server accepts it it's
 // message will trigger the new shell display.
 window.newShell = function(server_uuid) {
+  if (server_uuid === undefined) {
+    console.log('server_uuid needs to be defined to open a new shell.');
+    return;
+  };
+
   window.sendMessage('shell:new', '', server_uuid);
 };
 
@@ -174,12 +213,8 @@ window.newShell = function(server_uuid) {
 // current one can simple be hidden.
 window.openShell = function(server_uuid, shell_id) {
   if (window.servers[server_uuid] !== undefined) {
-    if (shell_id === undefined) {
-      window.newShell(server_uuid);
-    } else {
-      // Attempt to display a hidden shell
-      window.showShell(server_uuid, shell_id);
-    }
+    // Attempt to display a hidden shell
+    window.showShell(server_uuid, shell_id);
   } else {
     console.log("Attempted to open a shell to a server that doesn't exist.");
   };
@@ -191,7 +226,7 @@ window.sendMessage = function(type, data, dest) {
   shell_request['ty'] = type;
   shell_request['da'] = data;
 
-  if (dest === undefined) shell_request['de'] = dest;
+  if (dest !== undefined) shell_request['de'] = dest;
 
   if (window.ws.readyState == 1) {
     window.ws.send(JSON.stringify(shell_request));
@@ -209,6 +244,7 @@ window.showShell = function(server_uuid, shell_id) {
     // Hide all the shells before displaying a new one.
     window.hideAllShells();
     node.style.display = 'block';
+    window.current_shell = server_uuid + ':' + shell_id;
   } else {
     console.log("Error: Attempted to display shell that doesn't exist");
   };
