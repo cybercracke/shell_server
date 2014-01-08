@@ -2,7 +2,9 @@
 
 require 'json'
 require 'logger'
+require 'pty'
 require 'securerandom'
+require 'uri'
 
 require 'redis'
 require 'hiredis'
@@ -25,7 +27,45 @@ module MessageHandler
       $logger.info("[%s]: Opening new shell %s\n" % [UUID, shell_id])
       Thread.current[:redis].publish('shells', JSON.generate({'so' => UUID, 'de' => message['so'], 'ty' => 'shell:new', 'da' => shell_id}))
 
-      PTYS[shell_id] = :placeholder
+      read_socket, write_socket, pid = PTY.spawn('env PS1="[\u@\h] \w\$ " TERM=xterm-256color COLUMNS=80 LINES=24 sh -i')
+
+      PTYS[shell_id] = {
+        read: read_socket,
+        write: write_socket,
+        pid: pid
+      }
+
+      Thread.new(UUID, message['so'], shell_id, PTYS[shell_id]) do |server_id, client_id, shell_id, pty|
+        redis = Redis.new(driver: :hiredis)
+        logger = Logger.new("logs/shell_#{shell_id}.log")
+
+        begin
+          until write_socket.closed?
+            chars = pty[:read].readpartial(512)
+            logger.info("Read: #{chars}")
+
+            message = {
+              'so' => server_id,
+              'de' => client_id,
+              'ty' => "keys:#{shell_id}",
+              'da' => URI.escape(chars)
+            }
+
+            redis.publish('shells', JSON.generate(message))
+          end
+        rescue => e
+          logger.error("Shell closed for: #{e.message}")
+        end
+
+        message = {
+          'so' => server_id,
+          'de' => client_id,
+          'ty' => 'shells:closed',
+          'da' => shell_id
+        }
+
+        redis.publish('shells', JSON.generate(message))
+      end
     when /^keys:/
       shell_key = message['ty'].split(':').last
 
@@ -34,8 +74,8 @@ module MessageHandler
         return
       end
 
-      # For now lets just echo them back to the user
-      Thread.current[:redis].publish('shells', JSON.generate({'so' => UUID, 'de' => message['so'], 'ty' => message['ty'], 'da' => message['da']}))
+      # Pass the keys to the PTY:
+      PTYS[shell_key][:write].write(URI.unescape(message['da']))
     else
       $logger.info(raw_message)
     end
