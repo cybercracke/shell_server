@@ -87,10 +87,18 @@ window.handleMessage = function(msg) {
       };
 
       break;
-    case /^keys:/.test(msg.ty):
-      console.log('Received keys: ' + msg.da);
     default:
-      console.log(msg);
+      // Keys are a special case they need to be matched with a regex
+      if (/^keys:/.test(msg.ty)) {
+        server_uuid = msg.so;
+        shell_key = msg.ty.split(':')[1];
+
+        node = document.getElementById(server_uuid + ':' + shell_key);
+        if (node === undefined || node === null) return;
+        node.innerText = node.innerText + unescape(msg.da);
+      } else {
+        console.log(msg);
+      }
   };
 };
 
