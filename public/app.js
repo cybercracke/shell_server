@@ -197,6 +197,7 @@ window.sendMessage = function(type, data, dest) {
     window.ws.send(JSON.stringify(shell_request));
   } else {
     console.log("Websocket isn't available for writing.");
+    window.current_shell = undefined;
   };
 };
 
