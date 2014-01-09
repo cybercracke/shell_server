@@ -12,10 +12,10 @@ server:add    {'so' => '<source>', 'de' => '<dest|nil>', 'ty' => 'server:add',  
 server:remove {'so' => '<source>', 'de' => '<dest|nil>', 'ty' => 'server:remove', 'da' => '<uuid>'}
 server:list   {'so' => '<source>', 'de' => '<dest|nil>', 'ty' => 'server:list',   'da' => [{'id' => '<uuid>', 'name' => '<name>'}, ... ]}
 
-shell:keys    {'so' => '<source>', 'de' => '<dest>', 'ty' => 'shell:keys',  'da' => {'id' => '<shell-id>', 'chars' => '<chars>', 'time' => <time>}}
+shell:keys    {'so' => '<source>', 'de' => '<dest>', 'ty' => 'shell:keys',   'da' => {'id' => '<shell-id>', 'chars' => '<chars>', 'time' => <time>}}
 shell:request {'so' => '<source>', 'de' => '<dest>', 'ty' => 'shell:request'}
-shell:new     {'so' => '<source>', 'de' => '<dest>', 'ty' => 'shell:new',   'da' => '<shell-id>'}
-shell:close   {'so' => '<source>', 'de' => '<dest>', 'ty' => 'shell:close', 'da' => '<shell-id>'}
+shell:opened  {'so' => '<source>', 'de' => '<dest>', 'ty' => 'shell:opened', 'da' => '<shell-id>'}
+shell:closed  {'so' => '<source>', 'de' => '<dest>', 'ty' => 'shell:closed', 'da' => '<shell-id>'}
 
 client:disconnect {'so' => '<source>', 'ty' => 'client:disconnect', 'da' => '<client-id>'}
 

@@ -27,7 +27,7 @@ module MessageHandler
       $logger.info("[%s]: Opening new shell %s\n" % [UUID, shell_id])
       Thread.current[:redis].publish('shells', JSON.generate({'so' => UUID, 'de' => message['so'], 'ty' => 'shell:new', 'da' => shell_id}))
 
-      read_socket, write_socket, pid = PTY.spawn('env PS1="[\u@\h] \w\$ " TERM=xterm-256color COLUMNS=80 LINES=24 sh -i')
+      read_socket, write_socket, pid = PTY.spawn('env PS1="[\u@\h] \w\$ " TERM=vt100 COLUMNS=80 LINES=24 /bin/bash -i')
 
       PTYS[shell_id] = {
         read: read_socket,
