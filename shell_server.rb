@@ -14,6 +14,14 @@ SERVER_NAME = SecureRandom.hex(10)
 PTYS = {}
 THREADS = []
 
+# Clean out the environment
+safe_env = ['USER', 'HOME', 'EDITOR']
+ENV.each do |key, value|
+  unless safe_env.include?(key)
+    ENV.delete(key)
+  end
+end
+
 module MessageHandler
   def process(raw_message)
     message = JSON.parse(raw_message)

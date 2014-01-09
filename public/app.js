@@ -163,7 +163,6 @@ window.keyDownHandler = function(evnt) {
           charStr = "\x1b" + String.fromCharCode(evnt.keyCode + 32);
         }
       }
-      console.log('Unescaped key sequence. keyCode: ' + event.keyCode + 'charCode: ' + event.charCode);
       break;
   }
 
