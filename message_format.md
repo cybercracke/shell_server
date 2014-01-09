@@ -17,8 +17,13 @@ shell:request {'so' => '<source>', 'de' => '<dest>', 'ty' => 'shell:request'}
 shell:new     {'so' => '<source>', 'de' => '<dest>', 'ty' => 'shell:new',   'da' => '<shell-id>'}
 shell:close   {'so' => '<source>', 'de' => '<dest>', 'ty' => 'shell:close', 'da' => '<shell-id>'}
 
+client:disconnect {'so' => '<source>', 'ty' => 'client:disconnect', 'da' => '<client-id>'}
+
 ping  {'so' => '<source>', 'de' => '<dest>', 'ty' => 'ping', 'da' => '<sources time>'}
 pong  {'so' => '<source>', 'de' => '<dest>', 'ty' => 'pong', 'da' => '<sources time>'}
+
+In the event a client closes the web server should generate a client:disconnect
+to allow servers to clean up shells left behind.
 
 Sample generation:
 

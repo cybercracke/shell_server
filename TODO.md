@@ -6,6 +6,8 @@ in order:
 * Scroll-back buffers
 * Character output buffers w/ interval flushing
 * Rework communication to meet new simplified message formats
+  * Inform server when web client closes (remove all shells for client)
+* Shell & Thread cleanup, disable sending keys when current shell is inactive
 * Clean up the code, document it
   * Templated HTML would help with this (Maybe mustache?
     http://www.sitepoint.com/creating-html-templates-with-mustachejs/)
