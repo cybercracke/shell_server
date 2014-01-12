@@ -35,7 +35,16 @@ module MessageHandler
       $logger.info("[%s]: Opening new shell %s\n" % [UUID, shell_id])
       Thread.current[:redis].publish('shells', JSON.generate({'so' => UUID, 'de' => message['so'], 'ty' => 'shell:new', 'da' => shell_id}))
 
+      # Temporarily switch to the user's home directory, for the spawning of
+      # the shell
+      original_working_directory = Dir.pwd
+      Dir.chdir(ENV['HOME'])
+
+      # Spawn the actual shell process
       read_socket, write_socket, pid = PTY.spawn('env PS1="[\u@\h] \w\$ " TERM=vt100 COLUMNS=80 LINES=24 /bin/bash -i')
+
+      # Reset our the directory back to it's original
+      Dir.chdir(original_working_directory)
 
       PTYS[shell_id] = {
         read: read_socket,
