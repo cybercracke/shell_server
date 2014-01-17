@@ -74,7 +74,7 @@ window.handleMessage = function(msg) {
         });
 
         term.on('data', function(data) {
-          console.log('Term Data: ' + data);
+          window.sendMessage("keys:" + msg.da, escape(data), msg.so);
         });
 
         term.on('title', function(title) {
@@ -116,125 +116,6 @@ window.handleMessage = function(msg) {
       } else {
         console.log(msg);
       }
-  };
-};
-
-// Source for key press numbers:
-//  http://www.cambiaresearch.com/articles/15/javascript-char-codes-key-codes
-// Source for ANSI escape sequences:
-//  http://ascii-table.com/ansi-escape-sequences-vt-100.php
-//
-// Handles encoding almost all keypresses to be passed on to the shell.
-window.keyDownHandler = function(evnt) {
-  if (window.current_shell === undefined) return true;
-  var charStr = "";
-
-  // Lookup / convert key press ID's into their ANSI escape sequences
-  switch (evnt.keyCode) {
-    case 8: charStr = "\x08"; break;    // Backspace
-    case 9: charStr = "\t"; break;      // Tab
-    case 13: charStr = "\r"; break;     // 'Enter', may need a '\n' as well
-    case 27: charStr = "\x1b"; break;   // Esc
-    case 33:                            // Page up
-      if (evnt.ctrlKey) {
-        console.log('This should scroll the display up by the height of the terminal');
-      } else {
-        charStr = "\x1b[5~";
-      }
-      break;
-    case 34:                            // Page down
-      if (evnt.ctrlKey) {
-        console.log('This should scroll the display down by the height of the terminal');
-      } else {
-        charStr = "\x1b[6~";
-      }
-      break;
-    case 35: charStr = "\x1bOF"; break; // End
-    case 36: charStr = "\x1bOH"; break; // Home
-    case 37: charStr = "\x1b[D"; break; // Left arrow
-    case 38:                            // Up arrow
-      if (evnt.ctrlKey) {
-        console.log('This should scroll the display up by one line');
-      } else {
-        charStr = "\x1b[A";
-      }
-      break;
-    case 39: charStr = "\x1b[C"; break; // Right arrow
-    case 40:                            // Down arrow
-      if (evnt.ctrlKey) {
-        console.log('This should scroll the display down by one line');
-      } else {
-        charStr = "\x1b[B";
-      }
-      break;
-    case 45: charStr = "\x1b[2~"; break; // Insert
-    case 46: charStr = "\x1b[3~"; break; // Delete
-    default:
-      if (evnt.ctrlKey) {
-        if (evnt.keyCode >= 65 && evnt.keyCode <= 90) {
-          charStr = String.fromCharCode(evnt.keyCode - 64);
-        } else if (evnt.keyCode == 32) {
-          charStr = String.fromCharCode(0);
-        }
-      } else if (evnt.altKey || evnt.metaKey) {
-        if (evnt.keyCode >= 65 && evnt.keyCode <= 90) {
-          charStr = "\x1b" + String.fromCharCode(evnt.keyCode + 32);
-        }
-      }
-      break;
-  }
-
-  if (charStr) {
-    if (evnt.stopPropagation) evnt.stopPropagation();
-    if (evnt.preventDefault) evnt.preventDefault();
-
-    window.key_rep_state = 1;
-    window.key_rep_str = charStr;
-
-    shell_parts = window.current_shell.split(':');
-    window.sendMessage("keys:" + shell_parts[1], escape(charStr), shell_parts[0]);
-
-    return false;
-  } else {
-    window.key_rep_state = 0;
-    return true;
-  }
-};
-
-// Handle long key presses, key repeats.
-window.keyPressHandler = function(evnt) {
-  if (window.current_shell === undefined) return true;
-  if (evnt.stopPropagation) evnt.stopPropagation();
-  if (evnt.preventDefault) evnt.preventDefault();
-
-  var charStr = "", code = 0;
-
-  if (('charCode' in evnt) !== -1) {
-    code = evnt.charCode;
-  } else {
-    code = evnt.keyCode;
-
-    if (window.key_rep_state == 1) {
-      window.key_rep_state = 2;
-      return false;
-    } else if (this.key_rep_state == 2) {
-      charStr = window.key_rep_str;
-    }
-  };
-
-  if (code != 0) {
-    if (!evnt.ctrlKey && (!evnt.altKey || !evnt.metaKey)) {
-      charStr = String.fromCharCode(code);
-    };
-  };
-
-  if (charStr) {
-    shell_parts = window.current_shell.split(':');
-    window.sendMessage("keys:" + shell_parts[1], escape(charStr), shell_parts[0]);
-
-    return false;
-  } else {
-    return true;
   };
 };
 
@@ -318,9 +199,6 @@ window.onload = function() {
 
     ws.onopen = function()    {
       console.log('Websocket opened.');
-
-      document.addEventListener("keydown", window.keyDownHandler, true);
-      document.addEventListener("keypress", window.keyPressHandler, true);
     };
 
     ws.onclose = function() { console.log('Websocket closed.'); };
