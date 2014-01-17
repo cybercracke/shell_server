@@ -41,7 +41,7 @@ module MessageHandler
       Dir.chdir(ENV['HOME'])
 
       # Spawn the actual shell process
-      read_socket, write_socket, pid = PTY.spawn('env PS1="[\u@\h] \w\$ " TERM=vt100 COLUMNS=160 LINES=48 /bin/bash -i')
+      read_socket, write_socket, pid = PTY.spawn('env PS1="[\u@\h] \w\$ " TERM=vt100 COLUMNS=80 LINES=24 /bin/bash -i')
 
       # Reset our the directory back to it's original
       Dir.chdir(original_working_directory)
@@ -77,7 +77,7 @@ module MessageHandler
         message = {
           'so' => server_id,
           'de' => client_id,
-          'ty' => 'shells:closed',
+          'ty' => 'shell:closed',
           'da' => shell_id
         }
 

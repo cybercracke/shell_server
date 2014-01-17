@@ -67,8 +67,8 @@ window.handleMessage = function(msg) {
       if (msg.so in window.servers) {
         // Create the terminal
         var term = new Terminal({
-          cols: 160,
-          rows: 48,
+          cols: 80,
+          rows: 24,
           useStyle: true,
           screenKeys: false
         });
@@ -99,6 +99,15 @@ window.handleMessage = function(msg) {
         window.drawServers();
         window.current_shell = msg.so + ':' + msg.da;
         window.showCurrentShell();
+      };
+
+      break;
+    case 'shell:closed':
+      // Ensure we already know about this server ignore it otherwise
+      if (msg.so in window.servers) {
+        window.servers[msg.so]['shells'][msg.da].destroy();
+        delete(window.servers[msg.so]['shells'][msg.da]);
+        drawServers();
       };
 
       break;
