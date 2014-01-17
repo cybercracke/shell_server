@@ -110,7 +110,7 @@ window.handleMessage = function(msg) {
 
         for (i in window.servers[uuid]['shells']) {
           if (i == shell_key) {
-            window.servers[uuid]['shells'][i].write(msg.da);
+            window.servers[uuid]['shells'][i].write(unescape(msg.da));
           };
         };
       } else {

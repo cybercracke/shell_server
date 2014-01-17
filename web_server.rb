@@ -152,14 +152,8 @@ __END__
       }
 
       .shell {
-        height: 24em;
-        width: 80em;
-        background: #333;
-        color: #efefef;
         font-family: monospace;
-        line-height: 1.2em;
-        padding: 1.0em;
-        overflow: auto;
+        line-height: 1.0em;
       }
 
       .hidden.shell {
