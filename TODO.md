@@ -2,7 +2,6 @@
 Things that I want to accomplish in this that I still have to work on, roughly
 in order:
 
-* VT100 escape code sequence processing (including colors)
 * Scroll-back buffers
 * Character output buffers w/ interval flushing
 * Rework communication to meet new simplified message formats
