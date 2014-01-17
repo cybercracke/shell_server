@@ -22,9 +22,7 @@ window.drawServers = function() {
 
     shellsList = document.createElement('ul');
 
-    for (i in window.servers[uuid]['shells']) {
-      shell_key = window.servers[uuid]['shells'][i];
-
+    for (shell_key in window.servers[uuid]['shells']) {
       shellLi = document.createElement('li');
       activeShellLink = document.createElement('a');
 
@@ -67,17 +65,35 @@ window.handleMessage = function(msg) {
     case 'shell:new':
       // Ensure we already know about this server ignore it otherwise
       if (msg.so in window.servers) {
+        // Create the terminal
+        var term = new Terminal({
+          cols: 80,
+          rows: 24,
+          useStyle: true,
+          screenKeys: false
+        });
+
+        term.on('data', function(data) {
+          console.log('Term Data: ' + data);
+        });
+
+        term.on('title', function(title) {
+          console.log('New Title: ' + title);
+        });
+
         // Add the shell to known shell list
-        window.servers[msg.so]['shells'].push(msg.da);
+        window.servers[msg.so]['shells'][msg.da] = term;
 
         // Create our shell node
-        newShellNode = document.createElement('pre');
+        newShellNode = document.createElement('div');
         newShellNode.setAttribute('id', msg.so + ':' + msg.da);
         newShellNode.className = 'hidden shell';
 
         // Append the shell node to the page
         shellList = document.getElementById('shells');
         shellList.appendChild(newShellNode);
+
+        term.open(newShellNode);
 
         // Update the server list and show the appropriate shell
         window.drawServers();
@@ -92,9 +108,11 @@ window.handleMessage = function(msg) {
         server_uuid = msg.so;
         shell_key = msg.ty.split(':')[1];
 
-        node = document.getElementById(server_uuid + ':' + shell_key);
-        if (node === undefined || node === null) return;
-        node.innerText = node.innerText + unescape(msg.da);
+        for (i in window.servers[uuid]['shells']) {
+          if (i == shell_key) {
+            window.servers[uuid]['shells'][i].write(msg.da);
+          };
+        };
       } else {
         console.log(msg);
       }
@@ -284,7 +302,7 @@ window.showCurrentShell = function() {
 window.updateServer = function(server) {
   window.servers[server.uuid] = {};
   window.servers[server.uuid]['name'] = server.name;
-  window.servers[server.uuid]['shells'] = [];
+  window.servers[server.uuid]['shells'] = {};
 };
 
 // Setup the websocket when the page finishes loading as well as the message
