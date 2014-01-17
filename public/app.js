@@ -67,8 +67,8 @@ window.handleMessage = function(msg) {
       if (msg.so in window.servers) {
         // Create the terminal
         var term = new Terminal({
-          cols: 80,
-          rows: 24,
+          cols: 160,
+          rows: 48,
           useStyle: true,
           screenKeys: false
         });
@@ -131,7 +131,7 @@ window.keyDownHandler = function(evnt) {
 
   // Lookup / convert key press ID's into their ANSI escape sequences
   switch (evnt.keyCode) {
-    case 8: charStr = ""; break;        // Backspace
+    case 8: charStr = "\x08"; break;    // Backspace
     case 9: charStr = "\t"; break;      // Tab
     case 13: charStr = "\r"; break;     // 'Enter', may need a '\n' as well
     case 27: charStr = "\x1b"; break;   // Esc
